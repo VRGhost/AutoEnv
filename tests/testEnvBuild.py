@@ -4,10 +4,10 @@ from . import unittestEnv
 
 class TestBasicEnvGeneration(unittest.TestCase):
 
-    def te2stPipInstall(self):
+    def testPipInstall(self):
         _rc = unittestEnv.execTestCode(';'.join([
             "import pip, os",
-            "assert {0} in os.path.abspath(pip.__file__)".format(unittestEnv.TMP_DIR),
+            "assert {0!r} in os.path.abspath(pip.__file__)".format(unittestEnv.TMP_DIR),
         ]))
         self.assertEqual(_rc, 0)
 

@@ -22,7 +22,7 @@ if __name__ == "__main__":
     _env.activate()
 
     if _args.install:
-        _env.installPackages(_args.install)
+        _env.install(*_args.install)
 
     for _cmd in _args.rawCommands:
         exec(_cmd)
