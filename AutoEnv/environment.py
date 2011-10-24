@@ -2,6 +2,7 @@ import sys
 import os
 import urllib
 import logging
+import platform
 
 from . import (
     cmd,
@@ -20,13 +21,12 @@ class Environment(object):
         if not os.path.isdir(dir):
             raise RuntimeError("Root environment directory {0!r} does not exist.".format(self.root))
         
-        _contents = os.listdir(self.root)
-        if not ("bin" in _contents and "lib" in _contents and "include" in _contents):
+        if not self._isEnvInitialised():
             # Assuming new directory with no virtualenv installed.
             self._bootstrap()
 
     def activate(self):
-        _pyActivate = self._envPath("bin", "activate_this.py")
+        _pyActivate = self._envPath(self._binDirectory, "activate_this.py")
         execfile(_pyActivate, {"__file__": _pyActivate})
         self.activated = True
 
@@ -47,14 +47,22 @@ class Environment(object):
         return self.popen(cmd, **kwargs).wait()
 
     def popen(self, shellCmd, **kwargs):
-        _activate = self._envPath("bin", "activate")
-        assert os.path.exists(_activate)
-        # *nix-dependant call
+        _activateScript = self._envPath(self._binDirectory, "activate")
+        _activateInject = cmd.shell_inject_env_command()
+
+        _activateCmd = []
+        if _activateInject:
+            _activateCmd.append(_activateInject)
+        _activateCmd.append(_activateScript)
+
         _execCommand = cmd.SuccessSequence((
-            cmd.Command(["source", _activate]),
+            cmd.Command(_activateCmd),
             cmd.Command(shellCmd),
         ))
-        _cmd = ["sh", "-c", _execCommand.toCmdline()]
+        _cmd = []
+        _cmd.extend(cmd.shell_exec_cmdline())
+        _cmd.append(_execCommand.toCmdline())
+        print _cmd
         return subProc.Popen(_cmd, **kwargs)
 
     def getInstalledPackages(self):
@@ -111,6 +119,25 @@ class Environment(object):
 
     def _envPath(self, *args):
         return os.path.join(self.root, *args)
+
+    _binDirectoryCache = None
+    @property
+    def _binDirectory(self):
+        if not self._binDirectoryCache:
+            if platform.system() == "Windows":
+                _dir = "Scripts"
+            else:
+                _dir = "bin"
+            self._binDirectoryCache = self._envPath(_dir)
+        return self._binDirectoryCache
+
+    def _isEnvInitialised(self):
+        _contents = [_el.lower() for _el in os.listdir(self.root)]
+        for _reqDir in ("lib", "include", os.path.basename(self._binDirectory)):
+            if _reqDir not in _contents:
+                return False
+        return True
+
 
     def __repr__(self):
         return "<{0} dir={1!r}>".format(self.__class__.__name__, self.root)

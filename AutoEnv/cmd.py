@@ -1,5 +1,6 @@
 import itertools
 import collections
+import platform
 
 from subprocess import list2cmdline
 
@@ -50,5 +51,20 @@ class SuccessSequence(Command):
 
     def toCmdline(self):
         return " && ".join(_el.toCmdline() for _el in self.args)
+
+def shell_exec_cmdline():
+    if platform.system() == "Windows":
+        _rv = ("CMD", "/C")
+    else:
+        _rv = ("sh", "-c")
+    return _rv
+
+def shell_inject_env_command():
+    if shell_exec_cmdline()[0].lower() == "cmd":
+        _rv = None
+    else:
+        _rv = "source"
+    return _rv
+
 
 # vim: set sts=4 sw=4 et :

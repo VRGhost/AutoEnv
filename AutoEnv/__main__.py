@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 # from .
 import environment
@@ -15,6 +16,10 @@ def get_command_arg_parser():
     return _parser
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    _logger = logging.getLogger()
+    _logger.setLevel(logging.DEBUG)
+
     _parser = get_command_arg_parser()
     _args = _parser.parse_args()
 
