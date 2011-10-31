@@ -24,9 +24,25 @@ class TestBasicEnvGeneration(unittest.TestCase):
 
         self.env.install("wget")
 
-        self.assertTrue(self.env.getPkgInfo("wget"))
+        self.assertTrue(self.env.getSinglePkgInfo("wget"))
 
         import wget
-        self.assertNotEqual(wget, None, "Wget module must be present now")
+        self.assertTrue(wget, "Wget module must be present now")
+
+    def testInstallIfMissing(self):
+        with self.assertRaises(ImportError):
+            import bliss
+       
+        # Test that successive calls do not have any effect
+        for _x in xrange(10):
+            self.assertTrue(self.env.installIfMissing("bliss"))
+
+        import bliss
+        self.assertTrue(bliss, "Bliss module must be present now")
+        
+        # Test that successive calls do not have any effect
+        for _x in xrange(10):
+            self.env.installIfMissing("bliss")
+        
 
 # vim: set sts=4 sw=4 et :

@@ -37,15 +37,24 @@ class Environment(object):
             _pkg = package.RequiredPackage.construct(_el)
             _args = ["pip", "install"]
             _args.extend(_pkg.toCommandLineArguments())
+            assert len(_args) > 2, "{0!r} hust add something to command line.".format(_pkg)
             _cmds.append(cmd.Command(_args))
-
         _rc = self.call(cmd.SuccessSequence(_cmds))
         if _rc != 0:
-            raise RuntimeError("Installing package {0!r} failed with rc {1}".format(_el, _rc))
+            raise RuntimeError("Install command {0!r} failed with rc {1}".format(_cmds, _rc))
     
     def installIfMissing(self, *pkgs):
-        _installed = [_el["name"] for _el in self.getInstalledPackages()]
-        self.install(*(_name for _name in pkgs if _name not in _installed))
+        _pkgs = [package.RequiredPackage.construct(_el) for _el in pkgs]
+        _installed = self.getPkgInfo(_pkgs)
+        _toBeInstalled = []
+        for _req in _pkgs:
+            if not any(_req.satisfiedBy(_el) for _el in _installed):
+                _toBeInstalled.append(_req)
+
+        if _toBeInstalled:
+            self.install(*_toBeInstalled)
+
+        return _toBeInstalled
         
     def call(self, cmd, **kwargs):
         return self.popen(cmd, **kwargs).wait()
@@ -66,7 +75,6 @@ class Environment(object):
         _cmd = []
         _cmd.extend(cmd.shell_exec_cmdline())
         _cmd.append(_execCommand.toCmdline())
-        print _cmd
         return subProc.Popen(_cmd, **kwargs)
 
     def getInstalledPackages(self):
@@ -78,12 +86,19 @@ class Environment(object):
             for _pkg in util.get_installed_distributions()
         ]
 
-    def getPkgInfo(self, pkg):
-        _pkg = package.RequiredPackage.construct(pkg)
-        _installed = [_el for _el in self.getInstalledPackages() if _pkg.satisfiedBy(_el)]
-        assert len(_installed) <= 1
-        if _installed:
-            _rv = _installed[0]
+    def getPkgInfo(self, packages):
+        _pkgs = [package.RequiredPackage.construct(_el) for _el in packages]
+        _out = []
+        for _el in self.getInstalledPackages():
+            if any(_pkg.satisfiedBy(_el) for _pkg in _pkgs):
+                _out.append(_el)
+        return _out
+
+    def getSinglePkgInfo(self, pkgs):
+        _info = self.getPkgInfo((pkgs, ))
+        assert len(_info) <= 1
+        if _info:
+            _rv = _info[0]
         else:
             _rv = None
         return _rv
@@ -92,6 +107,8 @@ class Environment(object):
         """Ensure that current environment is activated."""
 
         if not self.activated:
+            logging.warning("Environment was not activated while executing command requires for it to be.")
+            logging.warning("Forcing environment activation.")
             self.activate()
 
     def _bootstrap(self):
