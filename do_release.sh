@@ -6,6 +6,6 @@ TEST_RC=$?
 
 if [ "${TEST_RC}" = "0" ]; then
 	# Tests ok
-	git branch master
+	git checkout master
 	git merge master --squash -m "Release on $(date -R)"
 fi
