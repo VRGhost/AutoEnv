@@ -6,6 +6,7 @@ import platform
 
 from . import (
     cmd,
+    package,
     subProc,
 )
 
@@ -33,7 +34,10 @@ class Environment(object):
     def install(self, *pkgs):
         _cmds = []
         for _el in pkgs:
-            _cmds.append(cmd.Command(["pip", "install", _el]))
+            _pkg = package.RequiredPackage.construct(_el)
+            _args = ["pip", "install"]
+            _args.extend(_pkg.toCommandLineArguments())
+            _cmds.append(cmd.Command(_args))
 
         _rc = self.call(cmd.SuccessSequence(_cmds))
         if _rc != 0:
@@ -70,19 +74,18 @@ class Environment(object):
 
         from pip import util
         return [
-            {
-                "version": _pkg.parsed_version,
-                "raw_version": _pkg.version,
-                "name": _pkg.key,
-            }
+            package.Package.fromPipDistribution(_pkg)
             for _pkg in util.get_installed_distributions()
         ]
 
     def getPkgInfo(self, pkg):
-        _installed = [_el for _el in self.getInstalledPackages() if _el["name"] == pkg]
-        _rv = {"installed": bool(_installed)}
+        _pkg = package.RequiredPackage.construct(pkg)
+        _installed = [_el for _el in self.getInstalledPackages() if _pkg.satisfiedBy(_el)]
+        assert len(_installed) <= 1
         if _installed:
-            _rv.update(_installed[0])
+            _rv = _installed[0]
+        else:
+            _rv = None
         return _rv
 
     def _activated(self):

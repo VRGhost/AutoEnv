@@ -24,7 +24,7 @@ class TestBasicEnvGeneration(unittest.TestCase):
 
         self.env.install("wget")
 
-        self.assertEqual(self.env.getPkgInfo("wget")["installed"], True)
+        self.assertTrue(self.env.getPkgInfo("wget"))
 
         import wget
         self.assertNotEqual(wget, None, "Wget module must be present now")
