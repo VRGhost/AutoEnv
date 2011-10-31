@@ -9,7 +9,7 @@ TEST_RC=$?
 
 if [ "${TEST_RC}" = "0" ]; then
 	# Tests ok
-	git checkout master
-	git merge "${CUR_BRANCH}" --squash -m "Release on $(date -R)"
+	git checkout master && \
+	git merge "${CUR_BRANCH}" --squash -m "Release on $(date -R)" && \
 	git checkout "${CUR_BRANCH}"
 fi
