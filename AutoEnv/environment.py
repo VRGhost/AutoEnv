@@ -15,10 +15,13 @@ class Environment(object):
     
     root = activated = None
 
-    def __init__(self, dir):
+    def __init__(self, dir, createDir=False):
         """`dir` is a directore where given environment is stored."""
 
         self.root = os.path.abspath(dir)
+
+        if not os.path.exists(dir) and createDir:
+                os.makedirs(dir)
         if not os.path.isdir(dir):
             raise RuntimeError("Root environment directory {0!r} does not exist.".format(self.root))
         
