@@ -60,8 +60,11 @@ def shell_exec_cmdline():
     return _rv
 
 def shell_inject_env_command():
-    if shell_exec_cmdline()[0].lower() == "cmd":
+    _shell = shell_exec_cmdline()[0].lower()
+    if _shell == "cmd":
         _rv = None
+    elif _shell == "sh":
+        _rv = "."
     else:
         _rv = "source"
     return _rv
