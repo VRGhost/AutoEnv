@@ -86,7 +86,7 @@ class Environment(object):
     def _safeCall(self, cmd):
         _rc = self.call(cmd)
         if _rc != 0:
-            raise RuntimeError("Install command {0!r} failed with rc {1}".format(_cmds, _rc))
+            raise RuntimeError("Install command {0!r} failed with rc {1}".format(cmd, _rc))
         
     def call(self, cmd, **kwargs):
         return self.popen(cmd, **kwargs).wait()
