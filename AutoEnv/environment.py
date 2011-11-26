@@ -3,6 +3,8 @@ import os
 import urllib
 import logging
 import platform
+import tempfile
+import threading
 
 from . import (
     cmd,
@@ -42,9 +44,31 @@ class Environment(object):
             _args.extend(_pkg.toCommandLineArguments())
             assert len(_args) > 2, "{0!r} hust add something to command line.".format(_pkg)
             _cmds.append(cmd.Command(_args))
-        _rc = self.call(cmd.SuccessSequence(_cmds))
-        if _rc != 0:
-            raise RuntimeError("Install command {0!r} failed with rc {1}".format(_cmds, _rc))
+        self._safeCall(cmd.SuccessSequence(_cmds))
+
+    def installFromReqFile(self, reqFile):
+        """Install requirements from requirements file."""
+        if not os.path.isfile(reqFile):
+            raise RuntimeError("Requirements file {0!r} does not exist.".format(reqFile))
+        _command = cmd.Command(["pip", "install", "-r", reqFile])
+        self._safeCall(_command)
+
+    _strInstallLock = threading.Lock()
+
+    def installFromReqStr(self, requirements):
+        """Install requirements from provided string."""
+        with self._strInstallLock:
+            (_fHandle, _fileName) = tempfile.mkstemp(dir=self.root, text=True)
+            os.write(_fHandle, requirements)
+            os.close(_fHandle)
+
+            try:
+                self.installFromReqFile(_fileName)
+            except:
+                logging.error("Failed to install requirements from string {0!r}".format(requirements))
+            finally:
+                os.unlink(_fileName)
+
     
     def installIfMissing(self, *pkgs):
         _pkgs = [package.RequiredPackage.construct(_el) for _el in pkgs]
@@ -58,6 +82,11 @@ class Environment(object):
             self.install(*_toBeInstalled)
 
         return _toBeInstalled
+    
+    def _safeCall(self, cmd):
+        _rc = self.call(cmd)
+        if _rc != 0:
+            raise RuntimeError("Install command {0!r} failed with rc {1}".format(_cmds, _rc))
         
     def call(self, cmd, **kwargs):
         return self.popen(cmd, **kwargs).wait()
