@@ -18,11 +18,11 @@ class TestRuntimeBootstrap(unittest.TestCase):
 
     def testBootstap(self):
         with self.assertRaises(ImportError):
-            import lalita
+            import bottle
 
-        _boot = AutoEnv.Bootstrap(self.envDir, logging=True, requirements="lalita")
+        _boot = AutoEnv.Bootstrap(self.envDir, logging=True, requirements="bottle")
 
-        import lalita
-        self.assertTrue(wget, "`lalita` module must be present now")
+        import bottle
+        self.assertTrue(bottle, "`bottle` module must be present now")
 
 # vim: set sts=4 sw=4 et :
