@@ -24,6 +24,7 @@ class Bootstrap(object):
 
     install = property(lambda s: s._env.install)
     popen = property(lambda s: s._env.popen)
+    call = property(lambda s: s._env.call)
     installFromReqFile = property(lambda s: s._env.installFromReqFile)
     installFromReqStr = property(lambda s: s._env.installFromReqStr)
 
