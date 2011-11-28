@@ -186,7 +186,7 @@ class Environment(object):
     def _isEnvInitialised(self):
         _contents = [_el.lower() for _el in os.listdir(self.root)]
         for _reqDir in ("lib", "include", os.path.basename(self._binDirectory)):
-            if _reqDir not in _contents:
+            if _reqDir.lower() not in _contents:
                 return False
         return True
 
