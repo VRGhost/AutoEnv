@@ -2,7 +2,7 @@ import argparse
 import logging
 
 # from .
-import environment
+from AutoEnv import environment
 
 def get_command_arg_parser():
     _parser = argparse.ArgumentParser(description="Automatic Python environment configurator.")
