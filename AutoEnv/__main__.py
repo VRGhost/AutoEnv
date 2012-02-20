@@ -1,8 +1,6 @@
 import argparse
 import logging
 
-# from .
-from AutoEnv import environment
 
 def get_command_arg_parser():
     _parser = argparse.ArgumentParser(description="Automatic Python environment configurator.")
@@ -19,6 +17,17 @@ def get_command_arg_parser():
     return _parser
 
 if __name__ == "__main__":
+
+    import os.path as p
+    import sys
+    _thisPkgDir = p.abspath(p.dirname(p.dirname(__file__)))
+    if _thisPkgDir not in sys.path:
+        sys.path.insert(0, _thisPkgDir)
+
+    # from .
+    from AutoEnv import environment
+
+
     logging.basicConfig()
     _logger = logging.getLogger()
     _logger.setLevel(logging.DEBUG)
