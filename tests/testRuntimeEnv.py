@@ -32,17 +32,17 @@ class TestBasicEnvGeneration(unittest.TestCase):
     def testInstallIfMissing(self):
         with self.assertRaises(ImportError):
             import bliss
-       
+
         # Test that successive calls do not have any effect
         for _x in xrange(10):
             self.assertTrue(self.env.installIfMissing("bliss"))
 
         import bliss
         self.assertTrue(bliss, "Bliss module must be present now")
-        
+
         # Test that successive calls do not have any effect
         for _x in xrange(10):
             self.env.installIfMissing("bliss")
-        
+
 
 # vim: set sts=4 sw=4 et :
