@@ -10,6 +10,7 @@ from . import (
     cmd,
     package,
     subProc,
+    inject,
 )
 
 class Environment(object):
@@ -17,10 +18,13 @@ class Environment(object):
     
     root = activated = None
 
+    _injector = None
+
     def __init__(self, dir, createDir=False):
         """`dir` is a directore where given environment is stored."""
 
         self.root = os.path.abspath(dir)
+        self._injector = inject.Injector(self)
 
         if not os.path.exists(dir) and createDir:
                 os.makedirs(dir)
@@ -82,6 +86,12 @@ class Environment(object):
             self.install(*_toBeInstalled)
 
         return _toBeInstalled
+
+    def injectAutoInstallModule(self, name):
+        """Inject into Python import hooks to attempt installing modules on import."""
+        self._activated()
+        self._injector.activate()
+        return self._injector.addAutoInstallModule(name)
     
     def _safeCall(self, cmd):
         _rc = self.call(cmd)
