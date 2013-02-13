@@ -20,11 +20,13 @@ class Environment(object):
 
     _injector = None
 
-    def __init__(self, dir, createDir=False):
+    def __init__(self, dir, createDir=False, relocatable=True, dynamicInstall=True):
         """`dir` is a directore where given environment is stored."""
 
         self.root = os.path.abspath(dir)
         self._injector = inject.Injector(self)
+        self._relocatable = relocatable
+        self.doInstalls = dynamicInstall
 
         if not os.path.exists(dir) and createDir:
                 os.makedirs(dir)
@@ -41,6 +43,10 @@ class Environment(object):
         self.activated = True
 
     def install(self, *pkgs):
+        if not self.doInstalls:
+            raise RuntimeError("Dynamic package installation disabled.")
+        if not pkgs:
+            return
         _cmds = []
         for _el in pkgs:
             _pkg = package.RequiredPackage.construct(_el)
@@ -52,6 +58,9 @@ class Environment(object):
 
     def installFromReqFile(self, reqFile):
         """Install requirements from requirements file."""
+        if not self.doInstalls:
+            raise RuntimeError("Dynamic package installation disabled.")
+
         if not os.path.isfile(reqFile):
             raise RuntimeError("Requirements file {0!r} does not exist.".format(reqFile))
         _command = cmd.Command(["pip", "install", "-r", reqFile])
@@ -164,17 +173,20 @@ class Environment(object):
                 _f.write(self._urlget(r"https://raw.github.com/pypa/virtualenv/master/virtualenv.py"))
         
         assert os.path.exists(_virtualenv)
+
         # setup virtualenv
-        _rc = subProc.call(
-            [sys.executable, _virtualenv, os.path.basename(self.root)],
-            cwd=os.path.dirname(self.root),
-        )
+        _rc = subProc.call([sys.executable, _virtualenv, os.path.basename(self.root)], cwd=os.path.dirname(self.root))
         if _rc != 0:
             raise RuntimeError("Virtualenv setup failed.")
-        else:
-            os.unlink(_virtualenv)
-            if "virtualenv.pyc" in os.listdir(self.root):
-                os.unlink(self._envPath("virtualenv.pyc"))
+
+        if self._relocatable:
+            _rc = subProc.call([sys.executable, _virtualenv, "--relocatable", os.path.basename(self.root)], cwd=os.path.dirname(self.root))
+            if _rc != 0:
+                raise RuntimeError("Virtualenv setup failed.")
+
+        os.unlink(_virtualenv)
+        if "virtualenv.pyc" in os.listdir(self.root):
+            os.unlink(self._envPath("virtualenv.pyc"))
 
     def _urlget(self, url):
         return urllib.urlopen(url).read()
