@@ -5,7 +5,10 @@ import shutil
 
 from . import unittestEnv
 
-import AutoEnv
+try:
+    from .. import AutoEnv
+except ImportError:
+    import AutoEnv
 
 class TestBasicEnvGeneration(unittest.TestCase):
     """Test runtime environment modification."""
@@ -22,27 +25,26 @@ class TestBasicEnvGeneration(unittest.TestCase):
         with self.assertRaises(ImportError):
             import wget
 
-        self.env.install("wget")
-
-        self.assertTrue(self.env.getSinglePkgInfo("wget"))
-
+        self.env.installIfMissing("wget")
         import wget
         self.assertTrue(wget, "Wget module must be present now")
 
     def testInstallIfMissing(self):
         with self.assertRaises(ImportError):
-            import bliss
+            import bottle
 
         # Test that successive calls do not have any effect
+        self.assertTrue(self.env.installIfMissing("bottle"))
         for _x in xrange(10):
-            self.assertTrue(self.env.installIfMissing("bliss"))
+            self.assertFalse(self.env.installIfMissing("bottle"))
 
-        import bliss
-        self.assertTrue(bliss, "Bliss module must be present now")
+        import bottle
+        self.assertTrue(bottle, "Bottle module must be present now")
 
-        # Test that successive calls do not have any effect
-        for _x in xrange(10):
-            self.env.installIfMissing("bliss")
+    def testCustomImportHook(self):
+        self.env.injectAutoInstallModule("magicAutoInstallModule")
+        from magicAutoInstallModule import markdown
+        self.assertTrue(markdown, "Markdown is expected to be downloaded and imported.")
 
 
 # vim: set sts=4 sw=4 et :

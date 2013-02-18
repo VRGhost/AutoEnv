@@ -5,7 +5,10 @@ import shutil
 
 from . import unittestEnv
 
-import AutoEnv
+try:
+    from .. import AutoEnv
+except ImportError:
+    import AutoEnv
 
 class TestRuntimeBootstrap(unittest.TestCase):
     """Test runtime environment modification."""
@@ -18,11 +21,11 @@ class TestRuntimeBootstrap(unittest.TestCase):
 
     def testBootstap(self):
         with self.assertRaises(ImportError):
-            import bottle
+            import yaml
 
-        _boot = AutoEnv.Bootstrap(self.envDir, logging=True, requirements="bottle")
+        _boot = AutoEnv.Bootstrap(self.envDir, logging=True, requirements="pyyaml")
 
-        import bottle
-        self.assertTrue(bottle, "`bottle` module must be present now")
+        import yaml
+        self.assertTrue(yaml, "`bottle` module must be present now")
 
 # vim: set sts=4 sw=4 et :

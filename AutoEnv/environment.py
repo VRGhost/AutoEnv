@@ -1,10 +1,11 @@
-import sys
-import os
-import urllib
+import imp
 import logging
+import os
 import platform
+import sys
 import tempfile
 import threading
+import urllib
 
 from . import (
     cmd,
@@ -85,16 +86,18 @@ class Environment(object):
     
     def installIfMissing(self, *pkgs):
         _pkgs = [package.RequiredPackage.construct(_el) for _el in pkgs]
-        _installed = self.getPkgInfo(_pkgs)
-        _toBeInstalled = []
+        
+        _toInstall = []
         for _req in _pkgs:
-            if not any(_req.satisfiedBy(_el) for _el in _installed):
-                _toBeInstalled.append(_req)
+            try:
+                imp.find_module(_req.name)
+            except ImportError:
+                _toInstall.append(_req)
 
-        if _toBeInstalled:
-            self.install(*_toBeInstalled)
+        if _toInstall:
+            self.install(*_toInstall)
 
-        return _toBeInstalled
+        return _toInstall
 
     def injectAutoInstallModule(self, name):
         """Inject into Python import hooks to attempt installing modules on import."""
@@ -127,32 +130,6 @@ class Environment(object):
         _cmd.extend(cmd.shell_exec_cmdline())
         _cmd.append(_execCommand.toCmdline())
         return subProc.Popen(_cmd, **kwargs)
-
-    def getInstalledPackages(self):
-        self._activated()
-
-        from pip import util
-        return [
-            package.Package.fromPipDistribution(_pkg)
-            for _pkg in util.get_installed_distributions()
-        ]
-
-    def getPkgInfo(self, packages):
-        _pkgs = [package.RequiredPackage.construct(_el) for _el in packages]
-        _out = []
-        for _el in self.getInstalledPackages():
-            if any(_pkg.satisfiedBy(_el) for _pkg in _pkgs):
-                _out.append(_el)
-        return _out
-
-    def getSinglePkgInfo(self, pkgs):
-        _info = self.getPkgInfo((pkgs, ))
-        assert len(_info) <= 1
-        if _info:
-            _rv = _info[0]
-        else:
-            _rv = None
-        return _rv
 
     def _activated(self):
         """Ensure that current environment is activated."""
