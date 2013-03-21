@@ -43,7 +43,7 @@ class Environment(object):
         execfile(_pyActivate, {"__file__": _pyActivate})
         self.activated = True
 
-    def install(self, *pkgs):
+    def install(self, *pkgs, ignoreSystemPackages=False):
         if not self.doInstalls:
             raise RuntimeError("Dynamic package installation disabled.")
         if not pkgs:
@@ -52,19 +52,26 @@ class Environment(object):
         for _el in pkgs:
             _pkg = package.RequiredPackage.construct(_el)
             _args = ["pip", "install"]
+            if ignoreSystemPackages:
+                _args.append("--ignore-installed")
             _args.extend(_pkg.toCommandLineArguments())
             assert len(_args) > 2, "{0!r} hust add something to command line.".format(_pkg)
             _cmds.append(cmd.Command(_args))
         self._safeCall(cmd.SuccessSequence(_cmds))
 
-    def installFromReqFile(self, reqFile):
+    def installFromReqFile(self, reqFile, ignoreSystemPackages=False):
         """Install requirements from requirements file."""
         if not self.doInstalls:
             raise RuntimeError("Dynamic package installation disabled.")
 
         if not os.path.isfile(reqFile):
             raise RuntimeError("Requirements file {0!r} does not exist.".format(reqFile))
-        _command = cmd.Command(["pip", "install", "-r", reqFile])
+
+        _cmd = ["pip", "install", ]
+        if ignoreSystemPackages:
+            _cmd.append("--ignore-installed")
+        _cmd.extend(["-r", reqFile])
+        _command = cmd.Command(_cmd)
         self._safeCall(_command)
 
     _strInstallLock = threading.Lock()
