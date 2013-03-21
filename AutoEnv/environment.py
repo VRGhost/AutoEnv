@@ -43,7 +43,7 @@ class Environment(object):
         execfile(_pyActivate, {"__file__": _pyActivate})
         self.activated = True
 
-    def install(self, *pkgs, ignoreSystemPackages=False):
+    def install(self, *pkgs, **kwargs):
         if not self.doInstalls:
             raise RuntimeError("Dynamic package installation disabled.")
         if not pkgs:
@@ -52,7 +52,7 @@ class Environment(object):
         for _el in pkgs:
             _pkg = package.RequiredPackage.construct(_el)
             _args = ["pip", "install"]
-            if ignoreSystemPackages:
+            if kwargs.get("ignoreSystemPackages"):
                 _args.append("--ignore-installed")
             _args.extend(_pkg.toCommandLineArguments())
             assert len(_args) > 2, "{0!r} hust add something to command line.".format(_pkg)
@@ -68,7 +68,7 @@ class Environment(object):
             raise RuntimeError("Requirements file {0!r} does not exist.".format(reqFile))
 
         _cmd = ["pip", "install", ]
-        if ignoreSystemPackages:
+        if kwargs.get("ignoreSystemPackages"):
             _cmd.append("--ignore-installed")
         _cmd.extend(["-r", reqFile])
         _command = cmd.Command(_cmd)
@@ -91,7 +91,7 @@ class Environment(object):
                 os.unlink(_fileName)
 
     
-    def installIfMissing(self, *pkgs):
+    def installIfMissing(self, *pkgs, **kwargs):
         _pkgs = [package.RequiredPackage.construct(_el) for _el in pkgs]
         
         _toInstall = []
@@ -102,7 +102,7 @@ class Environment(object):
                 _toInstall.append(_req)
 
         if _toInstall:
-            self.install(*_toInstall)
+            self.install(*_toInstall, **kwargs)
 
         return _toInstall
 
