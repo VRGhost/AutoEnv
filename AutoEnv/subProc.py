@@ -28,18 +28,23 @@ class _StreamHandler(threading.Thread):
 
 class Popen(subprocess.Popen):
     
-    def __init__(self, cmd, **kwargs):
+    def __init__(self, cmd, forceNoStdRedirect=False, **kwargs):
         # stdout & stderr arguments are ignored.
         kwargs.pop("stdout", None)
         kwargs.pop("stderr", None)
 
-        super(Popen, self).__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+        if not forceNoStdRedirect:
+            kwargs["stdout"] = subprocess.PIPE
+            kwargs["stderr"] = subprocess.PIPE
 
-        self._stdoutProc = _StreamHandler(self.stdout, self.cb)
-        self._stderrProc = _StreamHandler(self.stderr, self.cb)
+        super(Popen, self).__init__(cmd, **kwargs)
 
-        self.stdout = None
-        self.stderr = None
+        if not forceNoStdRedirect:
+            self._stdoutProc = _StreamHandler(self.stdout, self.cb)
+            self._stderrProc = _StreamHandler(self.stderr, self.cb)
+
+            self.stdout = None
+            self.stderr = None
 
     def cb(self, handler, msg):
         if not msg:

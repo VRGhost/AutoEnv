@@ -1,15 +1,17 @@
-import sys
-import os
-import urllib
+import imp
 import logging
+import os
 import platform
+import sys
 import tempfile
 import threading
+import urllib
 
 from . import (
     cmd,
     package,
     subProc,
+    inject,
 )
 
 class Environment(object):
@@ -17,10 +19,15 @@ class Environment(object):
     
     root = activated = None
 
-    def __init__(self, dir, createDir=False):
+    _injector = None
+
+    def __init__(self, dir, createDir=False, relocatable=True, dynamicInstall=True):
         """`dir` is a directore where given environment is stored."""
 
         self.root = os.path.abspath(dir)
+        self._injector = inject.Injector(self)
+        self._relocatable = relocatable
+        self.doInstalls = dynamicInstall
 
         if not os.path.exists(dir) and createDir:
                 os.makedirs(dir)
@@ -36,21 +43,35 @@ class Environment(object):
         execfile(_pyActivate, {"__file__": _pyActivate})
         self.activated = True
 
-    def install(self, *pkgs):
+    def install(self, *pkgs, **kwargs):
+        if not self.doInstalls:
+            raise RuntimeError("Dynamic package installation disabled.")
+        if not pkgs:
+            return
         _cmds = []
         for _el in pkgs:
             _pkg = package.RequiredPackage.construct(_el)
             _args = ["pip", "install"]
+            if kwargs.get("ignoreSystemPackages"):
+                _args.append("--ignore-installed")
             _args.extend(_pkg.toCommandLineArguments())
             assert len(_args) > 2, "{0!r} hust add something to command line.".format(_pkg)
             _cmds.append(cmd.Command(_args))
         self._safeCall(cmd.SuccessSequence(_cmds))
 
-    def installFromReqFile(self, reqFile):
+    def installFromReqFile(self, reqFile, **kwargs):
         """Install requirements from requirements file."""
+        if not self.doInstalls:
+            raise RuntimeError("Dynamic package installation disabled.")
+
         if not os.path.isfile(reqFile):
             raise RuntimeError("Requirements file {0!r} does not exist.".format(reqFile))
-        _command = cmd.Command(["pip", "install", "-r", reqFile])
+
+        _cmd = ["pip", "install", ]
+        if kwargs.get("ignoreSystemPackages"):
+            _cmd.append("--ignore-installed")
+        _cmd.extend(["-r", reqFile])
+        _command = cmd.Command(_cmd)
         self._safeCall(_command)
 
     _strInstallLock = threading.Lock()
@@ -64,24 +85,32 @@ class Environment(object):
 
             try:
                 self.installFromReqFile(_fileName)
-            except:
-                logging.error("Failed to install requirements from string {0!r}".format(requirements))
+            except Exception as err:
+                logging.error("Failed to install requirements from string {!r}: {}".format(requirements, err))
             finally:
                 os.unlink(_fileName)
 
     
-    def installIfMissing(self, *pkgs):
+    def installIfMissing(self, *pkgs, **kwargs):
         _pkgs = [package.RequiredPackage.construct(_el) for _el in pkgs]
-        _installed = self.getPkgInfo(_pkgs)
-        _toBeInstalled = []
+        
+        _toInstall = []
         for _req in _pkgs:
-            if not any(_req.satisfiedBy(_el) for _el in _installed):
-                _toBeInstalled.append(_req)
+            try:
+                imp.find_module(_req.name)
+            except ImportError:
+                _toInstall.append(_req)
 
-        if _toBeInstalled:
-            self.install(*_toBeInstalled)
+        if _toInstall:
+            self.install(*_toInstall, **kwargs)
 
-        return _toBeInstalled
+        return _toInstall
+
+    def injectAutoInstallModule(self, name):
+        """Inject into Python import hooks to attempt installing modules on import."""
+        self._activated()
+        self._injector.activate()
+        return self._injector.addAutoInstallModule(name)
     
     def _safeCall(self, cmd):
         _rc = self.call(cmd)
@@ -109,32 +138,6 @@ class Environment(object):
         _cmd.append(_execCommand.toCmdline())
         return subProc.Popen(_cmd, **kwargs)
 
-    def getInstalledPackages(self):
-        self._activated()
-
-        from pip import util
-        return [
-            package.Package.fromPipDistribution(_pkg)
-            for _pkg in util.get_installed_distributions()
-        ]
-
-    def getPkgInfo(self, packages):
-        _pkgs = [package.RequiredPackage.construct(_el) for _el in packages]
-        _out = []
-        for _el in self.getInstalledPackages():
-            if any(_pkg.satisfiedBy(_el) for _pkg in _pkgs):
-                _out.append(_el)
-        return _out
-
-    def getSinglePkgInfo(self, pkgs):
-        _info = self.getPkgInfo((pkgs, ))
-        assert len(_info) <= 1
-        if _info:
-            _rv = _info[0]
-        else:
-            _rv = None
-        return _rv
-
     def _activated(self):
         """Ensure that current environment is activated."""
 
@@ -154,17 +157,20 @@ class Environment(object):
                 _f.write(self._urlget(r"https://raw.github.com/pypa/virtualenv/master/virtualenv.py"))
         
         assert os.path.exists(_virtualenv)
+
         # setup virtualenv
-        _rc = subProc.call(
-            [sys.executable, _virtualenv, os.path.basename(self.root)],
-            cwd=os.path.dirname(self.root),
-        )
+        _rc = subProc.call([sys.executable, _virtualenv, os.path.basename(self.root)], cwd=os.path.dirname(self.root))
         if _rc != 0:
             raise RuntimeError("Virtualenv setup failed.")
-        else:
-            os.unlink(_virtualenv)
-            if "virtualenv.pyc" in os.listdir(self.root):
-                os.unlink(self._envPath("virtualenv.pyc"))
+
+        if self._relocatable:
+            _rc = subProc.call([sys.executable, _virtualenv, "--relocatable", os.path.basename(self.root)], cwd=os.path.dirname(self.root))
+            if _rc != 0:
+                raise RuntimeError("Virtualenv setup failed.")
+
+        os.unlink(_virtualenv)
+        if "virtualenv.pyc" in os.listdir(self.root):
+            os.unlink(self._envPath("virtualenv.pyc"))
 
     def _urlget(self, url):
         return urllib.urlopen(url).read()
@@ -185,8 +191,8 @@ class Environment(object):
 
     def _isEnvInitialised(self):
         _contents = [_el.lower() for _el in os.listdir(self.root)]
-        for _reqDir in ("lib", "include", os.path.basename(self._binDirectory)):
-            if _reqDir not in _contents:
+        for _reqDir in ("lib", os.path.basename(self._binDirectory)):
+            if _reqDir.lower() not in _contents:
                 return False
         return True
 
