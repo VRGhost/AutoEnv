@@ -59,7 +59,7 @@ class Environment(object):
             _cmds.append(cmd.Command(_args))
         self._safeCall(cmd.SuccessSequence(_cmds))
 
-    def installFromReqFile(self, reqFile, ignoreSystemPackages=False):
+    def installFromReqFile(self, reqFile, **kwargs):
         """Install requirements from requirements file."""
         if not self.doInstalls:
             raise RuntimeError("Dynamic package installation disabled.")
@@ -85,8 +85,8 @@ class Environment(object):
 
             try:
                 self.installFromReqFile(_fileName)
-            except:
-                logging.error("Failed to install requirements from string {0!r}".format(requirements))
+            except Exception as err:
+                logging.error("Failed to install requirements from string {!r}: {}".format(requirements, err))
             finally:
                 os.unlink(_fileName)
 

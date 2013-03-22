@@ -7,7 +7,7 @@ from . import unittestEnv
 
 try:
     from .. import AutoEnv
-except ImportError:
+except (ImportError, ValueError):
     import AutoEnv
 
 class TestRuntimeBootstrap(unittest.TestCase):
